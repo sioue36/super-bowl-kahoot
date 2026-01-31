@@ -1,13 +1,17 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 
-import HelloWorld from "./components/HelloWorld.vue";
+import Login from "./pages/Login.vue";
+import Player from "./pages/Player.vue";
+import Leaderboard from "./pages/Leaderboard.vue";
 
 const Home = { template: "<h2>Home</h2>" };
 
 export default createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: "/", component: Home },
-    { path: "/about", component: HelloWorld },
+    { path: "/", redirect: "/login" },
+    { path: "/login", component: Login },
+    { path: "/player", component: Player },
+    { path: "/leaderboard", component: Leaderboard },
   ],
 });

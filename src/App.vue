@@ -1,14 +1,39 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import { onMounted, onBeforeUnmount, ref } from "vue";
+import { socket } from "./socket";
+
+const status = ref("connecting...");
+const last = ref("");
+
+onMounted(() => {
+  const onConnect = () => (status.value = `connected: ${socket.id}`);
+  const onDisconnect = () => (status.value = "disconnected");
+  const onServerHello = (msg) => (last.value = "server:hello " + JSON.stringify(msg));
+  const onAck = (msg) => (last.value = "server:ack " + JSON.stringify(msg));
+
+  socket.on("connect", onConnect);
+  socket.on("disconnect", onDisconnect);
+  socket.on("server:hello", onServerHello);
+  socket.on("server:ack", onAck);
+
+  // send one message
+  socket.emit("client:hello", { from: "vue", at: Date.now() });
+});
+
+onBeforeUnmount(() => {
+  socket.off("connect");
+  socket.off("disconnect");
+  socket.off("server:hello");
+  socket.off("server:ack");
+});
 </script>
 
 <template>
   <div style="font-family: sans-serif; padding: 24px;">
-    <h1>Hello Kahoot</h1>
-    <p>Current route: {{ $route.fullPath }}</p>
     <p>
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
+      <router-link to="/login">Login</router-link> |
+      <router-link to="/player">Player</router-link> |
+      <router-link to="/leaderboard">Leaderboard</router-link>
     </p>
 
     <router-view />

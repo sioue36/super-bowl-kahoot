@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "ngrok": ".\\ngrok.exe http 3000"
+    "ngrok": ".\\ngrok.exe http 3000",
+    "restart": "npm run build && npm run server"
   },
   "dependencies": {
     "express": "^5.2.1",
