@@ -26,22 +26,18 @@ const Phase = {
   SeeWhoPickWhat: "SeeWhoPickWhat",
 };
 
-const usernames = new Set();
-let host = null;
-
 let gameState = {
   phase: Phase.BeforeStart,
   round: 1,
-  // later: picks, scores, timer, etc.
+  hostName: null,
+  usernames: [],
+  pickTable: {},
+  whoPickedThisRound: [],
+  scores: {},
 };
 
 function broadcastState(io) {
   io.emit("server:state", gameState);
-}
-
-function setPhase(io, nextPhase) {
-  gameState = { ...gameState, phase: nextPhase };
-  broadcastState(io);
 }
 
 io.on("connection", (socket) => {
@@ -53,39 +49,116 @@ io.on("connection", (socket) => {
     username = username.trim();
     if (!username) return;
 
-    if (usernames.has(username) == false) {
+    if (!gameState.usernames.includes(username)) {
       console.log("New user logged in:", username);
-      usernames.add(username);
-
-      io.emit("server:new-user", Array.from(usernames));
+      // Add to the list of usernames
+      gameState.usernames.push(username);
+      // Initialize pickTable entry for the new user
+      gameState.pickTable[username] ??= [];
+      // Initialize scores entry for the new user
+      gameState.scores[username] ??= 0;
     } else {
-      console.log("Current users (no one added):", Array.from(usernames));
+      console.log("Current users (no one added):", gameState.usernames);
     }
     if (isHost) {
       console.log("Host set to:", username);
-      io.emit("server:new-host", username);
+      gameState.hostName = username;
     }
 
-    socket.emit("server:state", gameState);
+    broadcastState(io);
   });
 
   socket.on("host:start", () => {
-    setPhase(io, Phase.PickOutcome);
+    gameState.phase = Phase.PickOutcome;
+    broadcastState(io);
+  });
+
+  socket.on("client:pick", (payload = {}) => {
+    console.log("Received pick from client:", payload);
+    const { outcome, username } = payload;
+    if (!username || !outcome) return;
+    console.log(`User ${username} picked outcome: ${outcome}`);
+
+    while (gameState.pickTable[username].length < gameState.round - 1) {
+      // Fill in missing rounds with null picks
+      gameState.pickTable[username].push({ outcome: null });
+    }
+
+    if (gameState.pickTable[username].length == gameState.round - 1) {
+      gameState.pickTable[username].push({ outcome });
+    }
+
+    if (gameState.pickTable[username].length == gameState.round) {
+      //replace the pick for the current round
+      gameState.pickTable[username][gameState.round - 1] = { outcome };
+    }
+
+    if (!gameState.whoPickedThisRound.includes(username)) {
+      gameState.whoPickedThisRound.push(username);
+    }
+
+    console.log(
+      "Picks for",
+      username,
+      "in round",
+      gameState.round,
+      ":",
+      gameState.pickTable[username],
+    );
+
+    broadcastState(io);
   });
 
   socket.on("host:lock-picks", () => {
-    setPhase(io, Phase.SeeWhoPickWhat);
+    gameState.phase = Phase.SeeWhoPickWhat;
+
+    //logging for debugging
+    for (let user of gameState.usernames) {
+      console.log("Picks for user:", user);
+      let picks = gameState.pickTable[user];
+      for (let i = 0; i < picks.length; i++) {
+        console.log("  Round", i + 1, "picks:", picks[i]);
+      }
+    }
+
+    broadcastState(io);
   });
 
-  // example of "every message includes username"
-  //   socket.on("client:ping", (payload = {}) => {
-  //     console.log("ping user : ", payload.username);
+  socket.on("host:outcome", (payload = {}) => {
+    const { outcome } = payload;
+    if (!outcome) return;
 
-  //     let username = payload.username;
-  //     if (!username) return;
-  //     // do something...
-  //     socket.emit("server:pong", { ok: true, username });
-  //   });
+    // calculate scores
+    for (let user of gameState.usernames) {
+      let picks = gameState.pickTable[user];
+      let lastPick = picks[gameState.round - 1];
+      if (lastPick && lastPick.outcome === outcome) {
+        lastPick.correct = true;
+      } else if (lastPick) {
+        lastPick.correct = false;
+      }
+      let total = picks.filter((p) => p.correct == true).length;
+      gameState.scores[user] = total;
+    }
+
+    // reset for next round
+    gameState.whoPickedThisRound = [];
+
+    // increment round
+    gameState.round++;
+
+    // go back to pick phase
+    gameState.phase = Phase.PickOutcome;
+
+    console.log(
+      "Scores after round",
+      gameState.round - 1,
+      ":",
+      gameState.scores,
+    );
+
+    broadcastState(io);
+  });
 
   socket.on("disconnect", () => {
     console.log("socket disconnected:", socket.id);

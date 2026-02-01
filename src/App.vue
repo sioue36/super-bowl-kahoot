@@ -29,15 +29,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div style="font-family: sans-serif; padding: 24px;">
-    <p>
-      <router-link to="/login">Login</router-link> |
-      <router-link to="/player">Player</router-link> |
-      <router-link to="/leaderboard">Leaderboard</router-link>
-    </p>
-
-    <router-view />
-  </div>
+  <router-view />
 </template>
 
 <style scoped>

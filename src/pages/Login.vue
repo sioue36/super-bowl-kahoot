@@ -23,6 +23,11 @@ function login() {
 
 <template>
     <div>
+        <p>
+            <!-- <router-link to="/login">Login</router-link> |
+      <router-link to="/player">Player</router-link> | -->
+            <router-link to="/leaderboard">Leaderboard</router-link>
+        </p>
         <h2>Login</h2>
 
         <input v-model="name" placeholder="Username" @keyup.enter="login" />

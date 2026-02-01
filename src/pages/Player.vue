@@ -4,44 +4,69 @@ import { username } from "../sessionHelper";
 import { userEmit, socket } from "../socket";
 
 const gameState = ref(null);
-const hostName = ref(null);
 const name = ref(username.value);
-const isHost = computed(() => hostName.value === name.value);
+const isHost = computed(() => gameState.value?.hostName === name.value);
 
 
-function ping() {
-    userEmit("client:ping");
-    console.log("ping sent!", name.value);
+
+function lockPicks() {
+    userEmit("host:lock-picks");
+    console.log("lock sent!", name.value);
+}
+
+function start() {
+    userEmit("host:start");
+    console.log("start sent!", name.value);
+}
+
+function pick(outcome) {
+    console.log("pick sent!", outcome, name.value);
+    userEmit("client:pick", { outcome });
+}
+
+function outcome(outcome) {
+    userEmit("host:outcome", { outcome });
+}
+
+function onState(state) {
+    gameState.value = state;
+    console.log("Game state updated:", state);
 }
 
 onMounted(() => {
-    socket.on("server:state", (state) => {
-        gameState.value = state;
-        console.log("Game state updated:", state);
-    });
-    socket.on("server:new-host", (newHost) => {
-        hostName.value = newHost;
-        console.log("New host assigned:", newHost);
-    });
+    socket.on("server:state", onState);
 });
 
 onBeforeUnmount(() => {
-    socket.off("server:state");
-    socket.off("server:new-host");
+    socket.off("server:state", onState);
 });
 </script>
 
 <template>
     <h2>{{ name }}{{ isHost ? " (Host)" : "" }}</h2>
-    <div v-if="isHost">
-        <button>StartGame</button>
+    <div v-if="isHost && gameState">
+        <div v-if="gameState?.phase == 'BeforeStart'">
+            <button @click="start">Start Game</button>
+        </div>
+        <div v-if="gameState?.phase == 'PickOutcome'">
+            <button @click="lockPicks">Lock Picks</button>
+        </div>
+        <div v-if="gameState?.phase == 'SeeWhoPickWhat'">
+            <button @click="outcome('Touchdown')">Touchdown</button>
+            <button @click="outcome('FieldGoal')">Field Goal Attempt</button>
+            <button @click="outcome('Punt')">Punt</button>
+            <button @click="outcome('Turnover')">Turnover (Interception/Fumble/Failed 4th Down/Safety)</button>
+            <button @click="outcome('EndOfTime')">End of Half/Game</button>
+        </div>
+
     </div>
     <div v-if="gameState?.phase === 'BeforeStart'">Waiting…</div>
-    <div v-else-if="gameState?.phase === 'PickOutcome'"> <button>Touchdown</button>
-        <button>Field Goal Attempt</button>
-        <button @click="ping">Punt</button>
-        <button>Turnover (Interception/Fumble/Failed 4th Down/Safety)</button>
-        <button>End of Half/Game</button>
+    <div v-else-if="gameState?.phase === 'PickOutcome'">
+        <button @click="pick('Touchdown')">Touchdown</button>
+        <button @click="pick('FieldGoal')">Field Goal Attempt</button>
+        <button @click="pick('Punt')">Punt</button>
+        <button @click="pick('Turnover')">Turnover (Interception/Fumble/Failed 4th Down/Safety)</button>
+        <button @click="pick('EndOfTime')">End of Half/Game</button>
     </div>
     <div v-else-if="gameState?.phase === 'SeeWhoPickWhat'">SeeWhoPickWhat UI</div>
 </template>
