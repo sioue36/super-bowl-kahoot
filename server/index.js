@@ -34,7 +34,25 @@ let gameState = {
   pickTable: {},
   whoPickedThisRound: [],
   scores: {},
+  streaks: {},
 };
+
+function updateStreakForUser(username, correct) {
+  let previousStreak = gameState.streaks[username];
+  if (correct) {
+    if (previousStreak < 0) {
+      gameState.streaks[username] = 1;
+    } else {
+      gameState.streaks[username] += 1;
+    }
+  } else {
+    if (previousStreak > 0) {
+      gameState.streaks[username] = -1;
+    } else {
+      gameState.streaks[username] -= 1;
+    }
+  }
+}
 
 function broadcastState(io) {
   io.emit("server:state", gameState);
@@ -57,6 +75,8 @@ io.on("connection", (socket) => {
       gameState.pickTable[username] ??= [];
       // Initialize scores entry for the new user
       gameState.scores[username] ??= 0;
+      // Initialize streaks entry for the new user
+      gameState.streaks[username] ??= 0;
     } else {
       console.log("Current users (no one added):", gameState.usernames);
     }
@@ -128,17 +148,55 @@ io.on("connection", (socket) => {
     const { outcome } = payload;
     if (!outcome) return;
 
-    // calculate scores
+    let rightUsers = [];
+    let wrongUsers = [];
+
+    // who got it right this round? and who got it wrong?
     for (let user of gameState.usernames) {
-      let picks = gameState.pickTable[user];
-      let lastPick = picks[gameState.round - 1];
+      let lastPick = gameState.pickTable[user][gameState.round - 1];
       if (lastPick && lastPick.outcome === outcome) {
         lastPick.correct = true;
+        rightUsers.push(user);
+        updateStreakForUser(user, true);
       } else if (lastPick) {
         lastPick.correct = false;
+        wrongUsers.push(user);
+        updateStreakForUser(user, false);
       }
-      let total = picks.filter((p) => p.correct == true).length;
-      gameState.scores[user] = total;
+    }
+
+    let goodAnswerCount = rightUsers.length;
+    let badAnswerCount = wrongUsers.length;
+    let pointsPerRightAnswer = badAnswerCount / goodAnswerCount || 0;
+
+    // puntPct = 0.35;
+    // 1;
+    // touchdownPct = 0.22;
+    // 0.66;
+    // fieldGoalPct = 0.16;
+    // 50;
+    // turnoverPct = 0.17;
+    // 50;
+    // endofTimePct = 0.7;
+
+    // assign points
+    for (let user of rightUsers) {
+      let streak = gameState.streaks[user];
+      let multiplicator = 1 + Math.max(0, streak - 1) * 0.25;
+      let pointsEarned = pointsPerRightAnswer * multiplicator;
+      gameState.scores[user] += pointsEarned;
+
+      let lastPick = gameState.pickTable[user][gameState.round - 1];
+      lastPick.pointsEarned = pointsEarned;
+      lastPick.bonusPct = (multiplicator - 1) * 100;
+      lastPick.totalScore = gameState.scores[user];
+    }
+
+    for (let user of wrongUsers) {
+      let lastPick = gameState.pickTable[user][gameState.round - 1];
+      lastPick.pointsEarned = 0;
+      lastPick.totalScore = gameState.scores[user];
+      lastPick.bonusPct = 0;
     }
 
     // reset for next round
