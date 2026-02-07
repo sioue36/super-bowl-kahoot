@@ -60,12 +60,70 @@ const shouldLockPicks = computed(() => pickedCount.value === totalPlayers.value)
 console.log("Should lock picks?", shouldLockPicks.value, pickedCount.value, totalPlayers.value);
 
 
+
+const picksThisRoundByOutcome = computed(() => {
+    const s = gameState.value;
+    if (!s) return {};
+
+    const roundIndex = (s.round ?? 1) - 1;
+    const pickTable = s.pickTable ?? {};
+
+    const users = Array.from(new Set(s.usernames ?? [])); // dedupe
+    const map = {
+        Touchdown: [],
+        FieldGoal: [],
+        Punt: [],
+        Turnover: [],
+        EndOfTime: [],
+    };
+
+    for (const u of users) {
+        const picks = pickTable[u] ?? [];
+        const pick = picks[roundIndex];
+        const outcome = pick?.outcome;
+        if (outcome && map[outcome]) {
+            map[outcome].push(u);
+            map[outcome].push(u);
+            map[outcome].push(u);
+            map[outcome].push(u);
+            map[outcome].push(u);
+            map[outcome].push(u);
+            map[outcome].push(u);
+            map[outcome].push(u);
+        }
+    }
+    for (const k of Object.keys(map)) map[k].sort((a, b) => a.localeCompare(b));
+
+    return map;
+});
+
+function namesFor(outcome) {
+    return picksThisRoundByOutcome.value?.[outcome] ?? [];
+}
+
+const myPickThisRound = computed(() => {
+    const s = gameState.value;
+    if (!s) return null;
+
+    const roundIndex = (s.round ?? 1) - 1;
+    const picks = (s.pickTable?.[name.value] ?? []);
+    return picks?.[roundIndex]?.outcome ?? null;
+});
+
+
+
+function confirmHostAction(message) {
+    return window.confirm(message);
+}
+
 function lockPicks() {
+    if (!confirmHostAction("Lock the picks?")) return;
     userEmit("host:lock-picks");
     console.log("lock sent!", name.value);
 }
 
 function start() {
+    if (!confirmHostAction("Start the game?")) return;
     userEmit("host:start");
     console.log("start sent!", name.value);
 }
@@ -77,6 +135,7 @@ function pick(outcome) {
 }
 
 function outcome(outcome) {
+    if (!confirmHostAction(`Set outcome to ${outcome}?`)) return;
     userEmit("host:outcome", { outcome });
 }
 
@@ -105,11 +164,13 @@ onBeforeUnmount(() => {
                 :class="{ ready: shouldLockPicks, notReady: !shouldLockPicks }">Lock Picks</button>
         </div>
         <div v-if="gameState?.phase == 'SeeWhoPickWhat'">
-            <button @click="outcome('Touchdown')">Touchdown</button>
-            <button @click="outcome('FieldGoal')">Field Goal Attempt</button>
-            <button @click="outcome('Punt')">Punt</button>
-            <button @click="outcome('Turnover')">Turnover (Interception/Fumble/Failed 4th Down/Safety)</button>
-            <button @click="outcome('EndOfTime')">End of Half/Game</button>
+            <div class="host-action">
+                <button @click="outcome('Touchdown')">TD</button>
+                <button @click="outcome('FieldGoal')">FG</button>
+                <button @click="outcome('Punt')">Punt</button>
+                <button @click="outcome('Turnover')">TO</button>
+                <button @click="outcome('EndOfTime')">END</button>
+            </div>
         </div>
 
     </div>
@@ -145,7 +206,42 @@ onBeforeUnmount(() => {
             </button>
         </div>
     </div>
-    <div v-else-if="gameState?.phase === 'SeeWhoPickWhat'">SeeWhoPickWhat UI</div>
+    <div v-else-if="gameState?.phase === 'SeeWhoPickWhat'" class="pick-screen">
+        <!-- Top banner (same as PickOutcome) -->
+        <div class="banner">
+            <div class="banner-row other">{{ formatRow(aboveMe) }}</div>
+            <div class="banner-row me">{{ formatRow(meRow || { username: name, score: 0 }) }}</div>
+            <div class="banner-row other">{{ formatRow(belowMe) }}</div>
+        </div>
+
+        <!-- Same 5 full-height rows, but as divs showing names -->
+        <div class="choices">
+            <div class="choice readonly" :class="{ active: myPickThisRound === 'Touchdown' }">
+                <div class="choice-title">Touchdown</div>
+                <div class="choice-names">{{ namesFor("Touchdown").join(", ") || "—" }}</div>
+            </div>
+
+            <div class="choice readonly" :class="{ active: myPickThisRound === 'FieldGoal' }">
+                <div class="choice-title">Field Goal Attempt</div>
+                <div class="choice-names">{{ namesFor("FieldGoal").join(", ") || "—" }}</div>
+            </div>
+
+            <div class="choice readonly" :class="{ active: myPickThisRound === 'Punt' }">
+                <div class="choice-title">Punt</div>
+                <div class="choice-names">{{ namesFor("Punt").join(", ") || "—" }}</div>
+            </div>
+
+            <div class="choice readonly" :class="{ active: myPickThisRound === 'Turnover' }">
+                <div class="choice-title">Turnover</div>
+                <div class="choice-names">{{ namesFor("Turnover").join(", ") || "—" }}</div>
+            </div>
+
+            <div class="choice readonly" :class="{ active: myPickThisRound === 'EndOfTime' }">
+                <div class="choice-title">End of Half/Game</div>
+                <div class="choice-names">{{ namesFor("EndOfTime").join(", ") || "—" }}</div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <style scoped>
@@ -171,6 +267,10 @@ onBeforeUnmount(() => {
     color: white;
     font-weight: 700;
     font-size: 14px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 /* top banner */
@@ -228,7 +328,6 @@ onBeforeUnmount(() => {
     background: rgba(255, 255, 255, 0.03);
     color: white;
 
-    padding: 0 16px;
 }
 
 /* active (last tapped) */
@@ -250,5 +349,22 @@ onBeforeUnmount(() => {
 
 .host-action.notReady {
     background: black;
+}
+
+.choice.readonly {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.choice-title {
+    font-size: 3.2vh;
+    font-weight: 800;
+}
+
+.choice-names {
+    font-size: 2vh;
+    opacity: 0.85;
 }
 </style>
