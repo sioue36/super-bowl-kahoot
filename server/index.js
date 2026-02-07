@@ -167,7 +167,7 @@ io.on("connection", (socket) => {
 
     let goodAnswerCount = rightUsers.length;
     let badAnswerCount = wrongUsers.length;
-    let pointsPerRightAnswer = badAnswerCount / goodAnswerCount || 0;
+    let pointsPerRightAnswer = (badAnswerCount / goodAnswerCount) * 10 || 0;
 
     // puntPct = 0.35;
     // 1;
@@ -183,7 +183,7 @@ io.on("connection", (socket) => {
     for (let user of rightUsers) {
       let streak = gameState.streaks[user];
       let multiplicator = 1 + Math.max(0, streak - 1) * 0.25;
-      let pointsEarned = pointsPerRightAnswer * multiplicator;
+      let pointsEarned = Math.round(pointsPerRightAnswer * multiplicator);
       gameState.scores[user] += pointsEarned;
 
       let lastPick = gameState.pickTable[user][gameState.round - 1];
