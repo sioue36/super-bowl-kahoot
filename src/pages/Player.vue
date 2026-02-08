@@ -191,7 +191,8 @@ onBeforeUnmount(() => {
             </button>
 
             <button class="choice" :class="{ active: selectedOutcome === 'Turnover' }" @click="pick('Turnover')">
-                Turnover
+                <div class="choice-title">Turnover</div>
+                <div class="choice-info">Interception/Fumble/Safety/Failed 4th Down</div>
             </button>
 
             <button class="choice" :class="{ active: selectedOutcome === 'EndOfTime' }" @click="pick('EndOfTime')">
@@ -356,8 +357,13 @@ onBeforeUnmount(() => {
     font-weight: 800;
 }
 
+.choice-info {
+    font-size: 1.8vh;
+    opacity: 0.7;
+}
+
 .choice-names {
-    font-size: 2vh;
-    opacity: 0.85;
+    font-size: 1.75vh;
+    opacity: 0.7;
 }
 </style>

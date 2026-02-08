@@ -3,9 +3,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
+import fs from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const SNAPSHOT_PATH = path.join(__dirname, "gameState.snapshot.json");
 
 const app = express();
 const httpServer = createServer(app);
@@ -56,6 +59,24 @@ function updateStreakForUser(username, correct) {
 
 function broadcastState(io) {
   io.emit("server:state", gameState);
+}
+
+async function saveSnapshot(state) {
+  try {
+    const tmpPath = `${SNAPSHOT_PATH}.tmp`;
+
+    // keep it clean + readable
+    const json = JSON.stringify(state, null, 2);
+
+    // atomic-ish write: write temp then rename
+    await fs.writeFile(tmpPath, json, "utf8");
+    await fs.rename(tmpPath, SNAPSHOT_PATH);
+
+    // optional: quick log
+    console.log("Snapshot saved:", SNAPSHOT_PATH);
+  } catch (err) {
+    console.warn("Failed to save snapshot:", err);
+  }
 }
 
 io.on("connection", (socket) => {
@@ -144,7 +165,7 @@ io.on("connection", (socket) => {
     broadcastState(io);
   });
 
-  socket.on("host:outcome", (payload = {}) => {
+  socket.on("host:outcome", async (payload = {}) => {
     const { outcome } = payload;
     if (!outcome) return;
 
@@ -168,16 +189,6 @@ io.on("connection", (socket) => {
     let goodAnswerCount = rightUsers.length;
     let badAnswerCount = wrongUsers.length;
     let pointsPerRightAnswer = (badAnswerCount / goodAnswerCount) * 10 || 0;
-
-    // puntPct = 0.35;
-    // 1;
-    // touchdownPct = 0.22;
-    // 0.66;
-    // fieldGoalPct = 0.16;
-    // 50;
-    // turnoverPct = 0.17;
-    // 50;
-    // endofTimePct = 0.7;
 
     // assign points
     for (let user of rightUsers) {
@@ -215,6 +226,7 @@ io.on("connection", (socket) => {
       gameState.scores,
     );
 
+    await saveSnapshot(gameState);
     broadcastState(io);
   });
 
