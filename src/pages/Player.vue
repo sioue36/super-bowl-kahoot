@@ -83,13 +83,6 @@ const picksThisRoundByOutcome = computed(() => {
         const outcome = pick?.outcome;
         if (outcome && map[outcome]) {
             map[outcome].push(u);
-            map[outcome].push(u);
-            map[outcome].push(u);
-            map[outcome].push(u);
-            map[outcome].push(u);
-            map[outcome].push(u);
-            map[outcome].push(u);
-            map[outcome].push(u);
         }
     }
     for (const k of Object.keys(map)) map[k].sort((a, b) => a.localeCompare(b));

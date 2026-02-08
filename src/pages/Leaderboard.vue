@@ -2,97 +2,97 @@
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { socket } from "../socket";
 
-const gameState2 = ref(null);
+const gameState = ref(null);
 
-const gameState = ref({
-    phase: "SeeWhoPickWhat",
-    round: 4,
-    hostName: "Host",
-    usernames: ["Martin", "Simon", "Julie", "Alex", "Martin", "Simon", "Julie", "Alex", "Martin", "Simon", "Julie", "Alex"],
-    whoPickedThisRound: ["Martin", "Julie"],
-    scores: {
-        Martin: 33,
-        Simon: 20,
-        Julie: 45,
-        Alex: 10,
-        Martin: 33,
-        Simon: 20,
-        Julie: 45,
-        Alex: 10,
-        Martin: 33,
-        Simon: 20,
-        Julie: 45,
-        Alex: 10,
-    },
-    streaks: {
-        Martin: 2,   // shows +2
-        Simon: -3,   // shows -3
-        Julie: 3,    // shows +4
-        Alex: 1,     // hidden by your logic (needs >=2 or <=-3)
-    },
-    pickTable: {
-        Martin: [
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Punt", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Punt" }, // current round: no result yet
-        ],
-        Simon: [
-            { outcome: "EndOfTime", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 0.0 },
-            { outcome: "EndOfTime", correct: true, pointsEarned: 2.0, bonusPct: 0, totalScore: 2.0 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Punt", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 2.0 },
-            { outcome: "Turnover" },
-        ],
-        Julie: [
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.5, bonusPct: 0, totalScore: 2.5 },
-            { outcome: "Punt", correct: true, pointsEarned: 1.25, bonusPct: 25, totalScore: 3.75 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 0.75, bonusPct: 50, totalScore: 4.5 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "FieldGoal" },
-        ],
-        Alex: [
-            { outcome: null }, // shows "-"
-            { outcome: "Punt", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 0.0 },
-            { outcome: "Turnover", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "EndOfTime", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Punt", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "EndOfTime", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
-            { outcome: "Punt", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
-            { outcome: "Punt" },
-        ],
-    },
-});
+// const gameState2 = ref({
+//     phase: "SeeWhoPickWhat",
+//     round: 4,
+//     hostName: "Host",
+//     usernames: ["Martin", "Simon", "Julie", "Alex", "Martin", "Simon", "Julie", "Alex", "Martin", "Simon", "Julie", "Alex"],
+//     whoPickedThisRound: ["Martin", "Julie"],
+//     scores: {
+//         Martin: 33,
+//         Simon: 20,
+//         Julie: 45,
+//         Alex: 10,
+//         Martin: 33,
+//         Simon: 20,
+//         Julie: 45,
+//         Alex: 10,
+//         Martin: 33,
+//         Simon: 20,
+//         Julie: 45,
+//         Alex: 10,
+//     },
+//     streaks: {
+//         Martin: 2,   // shows +2
+//         Simon: -3,   // shows -3
+//         Julie: 3,    // shows +4
+//         Alex: 1,     // hidden by your logic (needs >=2 or <=-3)
+//     },
+//     pickTable: {
+//         Martin: [
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Punt", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Punt" }, // current round: no result yet
+//         ],
+//         Simon: [
+//             { outcome: "EndOfTime", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 0.0 },
+//             { outcome: "EndOfTime", correct: true, pointsEarned: 2.0, bonusPct: 0, totalScore: 2.0 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Punt", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 2.0 },
+//             { outcome: "Turnover" },
+//         ],
+//         Julie: [
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.5, bonusPct: 0, totalScore: 2.5 },
+//             { outcome: "Punt", correct: true, pointsEarned: 1.25, bonusPct: 25, totalScore: 3.75 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 0.75, bonusPct: 50, totalScore: 4.5 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "FieldGoal" },
+//         ],
+//         Alex: [
+//             { outcome: null }, // shows "-"
+//             { outcome: "Punt", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 0.0 },
+//             { outcome: "Turnover", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "EndOfTime", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "FieldGoal", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Turnover", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Punt", correct: true, pointsEarned: 1.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "EndOfTime", correct: false, pointsEarned: 0.0, bonusPct: 0, totalScore: 1.0 },
+//             { outcome: "Punt", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Touchdown", correct: true, pointsEarned: 2.25, bonusPct: 25, totalScore: 3.25 },
+//             { outcome: "Punt" },
+//         ],
+//     },
+// });
 
 const Phase = {
     BeforeStart: "BeforeStart",
@@ -109,7 +109,7 @@ const outcomeShort = {
 };
 
 function onState(state) {
-    gameState2.value = state;
+    gameState.value = state;
     console.log("Game state updated:", state);
 }
 
